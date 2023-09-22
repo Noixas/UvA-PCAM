@@ -44,13 +44,13 @@ def get_dataloaders(data_path, batch_size, shuffle=True, download=True):
         transforms.PILToTensor()
     ])
 
-    train_dataset = PCAM(root='data', split='train', download=True, transform=transform)
-    val_dataset = PCAM(root='data', split='val', download=True, transform=transform)
-    test_dataset = PCAM(root='data', split='test', download=True, transform=transform)
+    train_dataset = PCAM(root=data_path, split='train', download=download, transform=transform)
+    val_dataset = PCAM(root=data_path, split='val', download=download, transform=transform)
+    test_dataset = PCAM(root=data_path, split='test', download=download, transform=transform)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle)
 
     return train_loader, val_loader, test_loader
 
