@@ -48,9 +48,9 @@ def get_dataloaders(data_path, batch_size, shuffle=True, download=True):
     val_dataset = PCAM(root='data', split='val', download=True, transform=transform)
     test_dataset = PCAM(root='data', split='test', download=True, transform=transform)
 
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
     return train_loader, val_loader, test_loader
 
