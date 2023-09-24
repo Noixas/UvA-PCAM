@@ -139,26 +139,26 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, num_epochs, num_
             'Train Loss: {:.4f}, Train Acc: {:.4f}, Train AUC: {:.4f}, \n Val Loss: {:.4f}, Val Acc: {:.4f}, Val AUC: {:.4f}\n'
             .format(train_loss, train_acc, train_auc, val_loss, val_acc, val_auc))
 
-        ## Save model
-        if save_ckpt_path is None:
-            save_ckpt_path = os.path.join('models',
-                                          f'{model.__class__.__name__}_lr{str(optimizer.defaults["lr"]).split(".")[1]}_epoch{epoch}.pt')
-            if not os.path.exists('models'):  # If folder 'models' doesn't exist, create it
-                os.makedirs('models')
-        save_ckpt_path = uniquify(
-            save_ckpt_path)  # Create unique path name by appending number if given path already exists
-        torch.save({
-            'epoch': epoch,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'train_loss': train_loss,
-            'train_acc': train_acc,
-            'train_auc': train_auc,
-            'val_loss': val_loss,
-            'val_acc': val_acc,
-            'val_auc': val_auc,
-        }, save_ckpt_path)
-        print(f'Saved checkpoint at: {save_ckpt_path}')
+    ## Save model
+    if save_ckpt_path is None:
+        save_ckpt_path = os.path.join('models',
+                                      f'{model.__class__.__name__}_lr{str(optimizer.defaults["lr"]).split(".")[1]}_epoch{num_epochs}.pt')
+        if not os.path.exists('models'):  # If folder 'models' doesn't exist, create it
+            os.makedirs('models')
+    save_ckpt_path = uniquify(
+        save_ckpt_path)  # Create unique path name by appending number if given path already exists
+    torch.save({
+        'epochs': num_epochs,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'train_loss': train_loss,
+        'train_acc': train_acc,
+        'train_auc': train_auc,
+        'val_loss': val_loss,
+        'val_acc': val_acc,
+        'val_auc': val_auc,
+    }, save_ckpt_path)
+    print(f'Saved checkpoint at: {save_ckpt_path}')
 
 
 def test(model, test_loader, loss_fun, num_classes, device, load_ckpt_path=None, save_results_path=None):
