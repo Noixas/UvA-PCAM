@@ -34,15 +34,21 @@ def tqdm(*args, **kwargs):
     return _tqdm(*args, **kwargs, mininterval=1)  # Safety, do not overflow buffer
 
 
-def get_dataloaders(data_path, batch_size, shuffle=True, download=True):
+def get_dataloaders(data_path, batch_size, shuffle=True, download=True, model_is_inception=False):
     """
     Creates dataloaders from dataset
     """
 
-    # Create a transform to convert all images to tensors
-    transform = transforms.Compose([
+    # Preprocessing and data augmentations
+    transform_list = [
         transforms.PILToTensor()
-    ])
+    ]
+
+    if model_is_inception:
+        transforms.insert(0, transforms.Resize(299))
+    transform = transforms.Compose(transform_list)
+
+
 
     train_dataset = PCAM(root=data_path, split='train', download=download, transform=transform)
     val_dataset = PCAM(root=data_path, split='val', download=download, transform=transform)
@@ -55,7 +61,7 @@ def get_dataloaders(data_path, batch_size, shuffle=True, download=True):
     return train_loader, val_loader, test_loader
 
 
-def train(model, train_loader, val_loader, loss_fun, optimizer, num_epochs, num_classes, device, save_ckpt_path=None):
+def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_epochs, num_classes, device, save_ckpt_path=None):
     """
     Trains model
     """
@@ -98,6 +104,10 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, num_epochs, num_
             loss_arr.append(loss.item())
             auc.update(outputs, labels)
             accuracy.update(outputs, labels)
+
+        # Scheduler step
+        scheduler.step()
+        print(optimizer.param_groups[0]["lr"])
 
         # Calculate the train loss and metrics
         train_loss = np.average(loss_arr)
