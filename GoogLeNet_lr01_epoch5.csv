@@ -1,0 +1,2 @@
+,model,gflops,test_loss,test_acc,test_auc
+0,GoogLeNet,0.5534969,0.6088335159729468,0.7341614,0.8125122

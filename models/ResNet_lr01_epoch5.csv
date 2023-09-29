@@ -1,0 +1,2 @@
+,model,gflops,test_loss,test_acc,test_auc
+0,ResNet,0.669185028,1.0124773808784084,0.7621155,0.8346163

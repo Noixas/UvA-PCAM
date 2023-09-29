@@ -8,7 +8,7 @@ data/
 env/
 # C extensions
 *.so
-
+*.pt
 # Distribution / packaging
 .Python
 build/
