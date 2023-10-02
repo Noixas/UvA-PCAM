@@ -8,8 +8,8 @@ parser = argparse.ArgumentParser(description="Test script",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-model",  choices=['AlexNet', 'VGG-16', 'VGG-11', 'GoogleNet', 'Inception-v3',
                                         'ResNet-18', 'DenseNet-161', 'ViT-Base-16'], help="Model name")
-parser.add_argument("-batch", default=32, help="Batch size")
-parser.add_argument("-classes", default=2, help="Number of classes")
+parser.add_argument("-batch", type=int, default=32, help="Batch size")
+parser.add_argument("-classes", type=int, default=2, help="Number of classes")
 parser.add_argument("-load_model", help="Load checkpoint path")
 parser.add_argument("-save_results", default=None, help="Save results path")
 args = parser.parse_args()
