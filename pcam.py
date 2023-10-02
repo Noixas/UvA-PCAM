@@ -10,6 +10,9 @@ from torchvision.datasets import PCAM
 import torchvision.transforms as transforms
 from torcheval.metrics import MulticlassAUROC, MulticlassAccuracy
 
+from torchvision.models import alexnet, vgg11, vgg16, googlenet, inception_v3, resnet18, densenet161
+from torchvision.models.vision_transformer import vit_b_16
+
 
 def uniquify(path):
     """
@@ -34,7 +37,7 @@ def tqdm(*args, **kwargs):
     return _tqdm(*args, **kwargs, mininterval=1)  # Safety, do not overflow buffer
 
 
-def get_dataloaders(data_path, batch_size, shuffle=True, download=True, model_is_inception=False):
+def get_dataloaders(data_path, batch_size, shuffle=True, download=True, resize=None):
     """
     Creates dataloaders from dataset
     """
@@ -44,11 +47,10 @@ def get_dataloaders(data_path, batch_size, shuffle=True, download=True, model_is
         transforms.PILToTensor()
     ]
 
-    if model_is_inception:
-        transforms.insert(0, transforms.Resize(299))
+    if resize:
+        transform_list.insert(0, transforms.Resize(resize))
+
     transform = transforms.Compose(transform_list)
-
-
 
     train_dataset = PCAM(root=data_path, split='train', download=download, transform=transform)
     val_dataset = PCAM(root=data_path, split='val', download=download, transform=transform)
@@ -61,12 +63,53 @@ def get_dataloaders(data_path, batch_size, shuffle=True, download=True, model_is
     return train_loader, val_loader, test_loader
 
 
-def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_epochs, num_classes, device, save_ckpt_path=None):
+def get_model(model_name, device):
+    model_dir = {'AlexNet': alexnet,
+                 'VGG-16': vgg16,
+                 'VGG-11': vgg11,
+                 'GoogleNet': googlenet,
+                 'Inception-v3': inception_v3,
+                 'ResNet-18': resnet18,
+                 'DenseNet-161': densenet161,
+                 'ViT-Base-16': vit_b_16}
+
+    model = model_dir[model_name](pretrained=True)
+    model.to(device)
+    print(f'Selected Model: {model.__class__.__name__}')
+
+    # Freeze all layers except last
+    for param in model.parameters():
+        param.requires_grad = False
+
+    # Create classification layer
+    num_classes = 2
+    if model.__class__.__name__ in ['AlexNet', 'VGG']:
+        model.classifier[-1] = torch.nn.Linear(model.classifier[-1].in_features, num_classes)
+        params = model.classifier[-1].parameters()
+    elif model.__class__.__name__ == 'DenseNet':
+        model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes)
+        params = model.classifier.parameters()
+    elif model.__class__.__name__ == 'VisionTransformer':
+        model.heads.head = torch.nn.Linear(model.heads.head.in_features, num_classes)
+        params = model.heads.head.parameters()
+    else:
+        model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
+        params = model.fc.parameters()
+
+    return model, params
+
+
+def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_epochs, num_classes, device, save_ckpt_path=None, load_ckpt_path=None):
     """
     Trains model
     """
 
     model.to(device)
+
+    # Start from checkpoint
+    if load_ckpt_path is not None:
+        checkpoint = torch.load(load_ckpt_path)
+        model.load_state_dict(checkpoint['model_state_dict'])
 
     # Create metric monitors
     auc = MulticlassAUROC(num_classes=num_classes)
@@ -82,7 +125,7 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
         auc.reset()
         accuracy.reset()
 
-        ## Train
+        # Train
         for inputs, labels in tqdm(train_loader, desc=f'Epoch {epoch + 1}/{num_epochs}, Training'):
             # Move the inputs and labels to the device
             inputs = inputs.float().to(device)
@@ -122,7 +165,7 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
         auc.reset()
         accuracy.reset()
 
-        ## Validate
+        # Validate
         with torch.no_grad():
             for inputs, labels in tqdm(val_loader, desc=f'Epoch {epoch + 1}/{num_epochs}, Validation'):
                 # Move the inputs and labels to the device
@@ -149,7 +192,7 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
             'Train Loss: {:.4f}, Train Acc: {:.4f}, Train AUC: {:.4f}, \n Val Loss: {:.4f}, Val Acc: {:.4f}, Val AUC: {:.4f}\n'
             .format(train_loss, train_acc, train_auc, val_loss, val_acc, val_auc))
 
-    ## Save model
+    # Save model
     if save_ckpt_path is None:
         save_ckpt_path = os.path.join('models',
                                       f'{model.__class__.__name__}_lr{str(optimizer.defaults["lr"]).split(".")[1]}_epoch{num_epochs}.pt')
