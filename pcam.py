@@ -150,8 +150,7 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
 
         # Scheduler step
         scheduler.step()
-        print(optimizer.param_groups[0]["lr"])
-
+        
         # Calculate the train loss and metrics
         train_loss = np.average(loss_arr)
         train_acc = accuracy.compute()

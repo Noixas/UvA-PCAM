@@ -1,3 +1,4 @@
+import os
 import argparse
 import torch
 from pcam import get_dataloaders, get_model, train, test
@@ -52,5 +53,11 @@ train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_epoch
       load_ckpt_path=config['load_model'])
 
 # Test
-test(model, test_loader, loss_fun, config['classes'], device, load_ckpt_path=config['save_model'],
+if config['load_model'] is None:
+    if config['save_model'] is None:
+        load_ckpt_path = os.path.join('models',
+                                  f'{model.__class__.__name__}_lr{str(optimizer.defaults["lr"]).split(".")[1]}_epoch{config["epochs"]}.pt')
+    else:
+        load_ckpt_path = config['save_model']
+test(model, test_loader, loss_fun, config['classes'], device, load_ckpt_path=load_ckpt_path,
      save_results_path=config['save_results'])
