@@ -9,6 +9,7 @@ parser = argparse.ArgumentParser(description="Train+Test script",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-model",  choices=['AlexNet', 'VGG-16', 'VGG-11', 'GoogleNet', 'Inception-v3',
                                         'ResNet-18', 'DenseNet-161', 'ViT-Base-16'], help="Model name")
+parser.add_argument("-augment", action='store_true', default=False, help="Add data augmentations or not")
 parser.add_argument("-batch", type=int, default=32, help="Batch size")
 parser.add_argument("-epochs", type=int, default=5, help="Number of epochs")
 parser.add_argument("-classes", type=int, default=2, help="Number of classes")
@@ -16,7 +17,6 @@ parser.add_argument("-lr", type=float, default=0.001, help="Learning rate")
 parser.add_argument("-save_model", default=None, help="Save checkpoint path")
 parser.add_argument("-load_model", default=None, help="Load checkpoint path")
 parser.add_argument("-save_results", default=None, help="Load checkpoint path")
-
 args = parser.parse_args()
 config = vars(args)
 print(config)
@@ -32,8 +32,9 @@ if 'Inception' in config['model']:
 elif 'ViT' in config['model']:
     resize = 224
 else:
-    resize = None
-train_loader, val_loader, test_loader = get_dataloaders('data', batch_size=config['batch'], resize=resize)
+    resize = 96
+train_loader, val_loader, test_loader = get_dataloaders('data', batch_size=config['batch'], resize=resize,
+                                                        augment=config['augment'])
 
 # Model
 model, params = get_model(config['model'], device)

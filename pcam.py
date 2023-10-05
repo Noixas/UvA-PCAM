@@ -7,11 +7,91 @@ from ptflops import get_model_complexity_info
 import torch
 from torch.utils.data import DataLoader
 from torchvision.datasets import PCAM
-import torchvision.transforms as transforms
+import torchvision.transforms.v2 as transforms
 from torcheval.metrics import MulticlassAUROC, MulticlassAccuracy
 
 from torchvision.models import alexnet, vgg11, vgg16, googlenet, inception_v3, resnet18, densenet161
 from torchvision.models.vision_transformer import vit_b_16
+
+
+class APCAM(PCAM):
+    """
+    Augmented PCAM dataset
+    """
+    _FILES = {
+        "train": {
+            "images": (
+                "camelyonpatch_level_2_split_train_x.h5",  # Data file name
+                "1Ka0XfEMiwgCYPdTI-vv6eUElOBnKFKQ2",  # Google Drive ID
+                "1571f514728f59376b705fc836ff4b63",  # md5 hash
+            ),
+            "targets": (
+                "camelyonpatch_level_2_split_train_y.h5",
+                "1269yhu3pZDP8UYFQs-NYs3FPwuK-nGSG",
+                "35c2d7259d906cfc8143347bb8e05be7",
+            ),
+        },
+        "test": {
+            "images": (
+                "camelyonpatch_level_2_split_test_x.h5",
+                "1qV65ZqZvWzuIVthK8eVDhIwrbnsJdbg_",
+                "d8c2d60d490dbd479f8199bdfa0cf6ec",
+            ),
+            "targets": (
+                "camelyonpatch_level_2_split_test_y.h5",
+                "17BHrSrwWKjYsOgTMmoqrIjDy6Fa2o_gP",
+                "60a7035772fbdb7f34eb86d4420cf66a",
+            ),
+        },
+        "val": {
+            "images": (
+                "camelyonpatch_level_2_split_valid_x.h5",
+                "1hgshYGWK8V-eGRy8LToWJJgDU_rXWVJ3",
+                "d5b63470df7cfa627aeec8b9dc0c066e",
+            ),
+            "targets": (
+                "camelyonpatch_level_2_split_valid_y.h5",
+                "1bH8ZRbhSVAhScTS0p9-ZzGnX91cHT3uO",
+                "2b85f58b927af9964a4c15b8f7e8f179",
+            ),
+        },
+        "train-augment": {
+            "images": (
+                "camelyonpatch_level_2_split_augment_train_x.h5",
+                "",
+                "",
+            ),
+            "targets": (
+                "camelyonpatch_level_2_split_augment_train_y.h5",
+                "",
+                "",
+            ),
+        },
+        "test-augment": {
+            "images": (
+                "camelyonpatch_level_2_split_augment_test_x.h5",
+                "",
+                "",
+            ),
+            "targets": (
+                "camelyonpatch_level_2_split_augment_test_y.h5",
+                "",
+                "",
+            ),
+        },
+        "val-augment": {
+            "images": (
+                "camelyonpatch_level_2_split_augment_valid_x.h5",
+                "",
+                "",
+            ),
+            "targets": (
+                "camelyonpatch_level_2_split_augment_valid_y.h5",
+                "",
+                "",
+            ),
+        },
+    }
 
 
 def uniquify(path):
@@ -37,24 +117,44 @@ def tqdm(*args, **kwargs):
     return _tqdm(*args, **kwargs, mininterval=1)  # Safety, do not overflow buffer
 
 
-def get_dataloaders(data_path, batch_size, shuffle=True, download=True, resize=None):
+def get_dataloaders(data_path, batch_size, shuffle=True, download=True, resize=96, augment=False):
     """
     Creates dataloaders from dataset
     """
 
-    # Preprocessing and data augmentations
-    transform_list = [
-        transforms.PILToTensor()
+    # Preprocessing
+    preprocess_list = [
+        transforms.PILToTensor(),
+        transforms.ToDtype(torch.uint8),
+        transforms.Resize(resize, antialias=True)
     ]
 
-    if resize:
-        transform_list.insert(0, transforms.Resize(resize))
+    # Data augmentations
+    if augment is True:
+        augment_list = [
+            transforms.RandomResizedCrop(resize, antialias=True),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
+            transforms.ColorJitter()
+        ]
+    else:
+        augment_list = []
 
-    transform = transforms.Compose(transform_list)
+    # Normalization
+    normalize_list = [
+        transforms.ToDtype(torch.float32),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ]
 
-    train_dataset = PCAM(root=data_path, split='train', download=download, transform=transform)
-    val_dataset = PCAM(root=data_path, split='val', download=download, transform=transform)
-    test_dataset = PCAM(root=data_path, split='test', download=download, transform=transform)
+    train_transform = transforms.Compose(preprocess_list + augment_list + normalize_list)  # Apply data augments only in train
+    testval_transform = transforms.Compose(preprocess_list + normalize_list)
+
+    print(f'Train Transforms:')
+    print(train_transform)
+
+    train_dataset = PCAM(root=data_path, split='train', download=download, transform=train_transform)
+    val_dataset = PCAM(root=data_path, split='val', download=download, transform=testval_transform)
+    test_dataset = PCAM(root=data_path, split='test', download=download, transform=testval_transform)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle)
@@ -188,7 +288,7 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
 
         # Print the epoch results
         print(
-            'Train Loss: {:.4f}, Train Acc: {:.4f}, Train AUC: {:.4f}, \n Val Loss: {:.4f}, Val Acc: {:.4f}, Val AUC: {:.4f}\n'
+            'Train Loss: {:.4f}, Train Acc: {:.4f}, Train AUC: {:.4f}, \n Val Loss: {:.4f}, Val Acc: {:.4f}, Val AUC: {:.4f}'
             .format(train_loss, train_acc, train_auc, val_loss, val_acc, val_auc))
 
     # Save model
@@ -210,7 +310,7 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
         'val_acc': val_acc,
         'val_auc': val_auc,
     }, save_ckpt_path)
-    print(f'Saved checkpoint at: {save_ckpt_path}')
+    print(f'Saved checkpoint at: {save_ckpt_path}\n')
 
 
 def test(model, test_loader, loss_fun, num_classes, device, load_ckpt_path=None, save_results_path=None):
@@ -278,4 +378,4 @@ def test(model, test_loader, loss_fun, num_classes, device, load_ckpt_path=None,
     save_results_path = uniquify(
         save_results_path)  # Create unique path name by appending number if given path already exists
     results.to_csv(save_results_path)
-    print(f'Saved results at: {save_results_path}')
+    print(f'Saved results at: {save_results_path}\n')
