@@ -12,7 +12,7 @@ from torcheval.metrics import MulticlassAUROC, MulticlassAccuracy
 
 from torchvision.models import alexnet, vgg11, vgg16, googlenet, inception_v3, resnet18, densenet161
 from torchvision.models.vision_transformer import vit_b_16
-
+from torchvision.models import swin_v2_b
 
 class APCAM(PCAM):
     """
@@ -171,7 +171,8 @@ def get_model(model_name, device):
                  'Inception-v3': inception_v3,
                  'ResNet-18': resnet18,
                  'DenseNet-161': densenet161,
-                 'ViT-Base-16': vit_b_16}
+                 'ViT-Base-16': vit_b_16,
+                 'Swin-V2-Base': swin_v2_b}
 
     model = model_dir[model_name](pretrained=True)
     model.to(device)
@@ -192,6 +193,9 @@ def get_model(model_name, device):
     elif model.__class__.__name__ == 'VisionTransformer':
         model.heads.head = torch.nn.Linear(model.heads.head.in_features, num_classes)
         params = model.heads.head.parameters()
+    elif model.__class__.__name__ == 'SwinTransformer':
+        model.head = torch.nn.Linear(model.head.in_features, num_classes)
+        params = model.head.parameters()
     else:
         model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
         params = model.fc.parameters()
@@ -199,7 +203,7 @@ def get_model(model_name, device):
     return model, params
 
 
-def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_epochs, num_classes, device, save_ckpt_path=None, load_ckpt_path=None):
+def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_epochs, num_classes, device, save_ckpt_path=None, load_ckpt_path=None, logger=None, run=None):
     """
     Trains model
     """
@@ -224,7 +228,8 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
         loss_arr = []
         auc.reset()
         accuracy.reset()
-
+        
+        i = 0
         # Train
         for inputs, labels in tqdm(train_loader, desc=f'Epoch {epoch + 1}/{num_epochs}, Training'):
             # Move the inputs and labels to the device
@@ -239,6 +244,7 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
             _, preds = torch.max(outputs, 1)
             loss = loss_fun(outputs, labels)
 
+
             # Backward pass and optimizer step
             loss.backward()
             optimizer.step()
@@ -247,7 +253,14 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
             loss_arr.append(loss.item())
             auc.update(outputs, labels)
             accuracy.update(outputs, labels)
-
+            
+            # Log metrics
+            # Log after every 30 steps
+            if i % 100 == 0 and run != None:
+                run[logger.base_namespace]["batch/loss"].append(loss.item())
+                run[logger.base_namespace]["batch/acc"].append( accuracy.compute())
+                run[logger.base_namespace]["batch/auc"].append( auc.compute())
+            i+=1
         # Scheduler step
         scheduler.step()
         
