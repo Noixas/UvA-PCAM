@@ -125,7 +125,6 @@ def get_dataloaders(data_path, batch_size, shuffle=True, download=True, resize=9
     # Preprocessing
     preprocess_list = [
         transforms.PILToTensor(),
-        transforms.ToDtype(torch.uint8),
         transforms.Resize(resize, antialias=True)
     ]
 
@@ -142,7 +141,6 @@ def get_dataloaders(data_path, batch_size, shuffle=True, download=True, resize=9
 
     # Normalization
     normalize_list = [
-        transforms.ToDtype(torch.float32),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ]
 
