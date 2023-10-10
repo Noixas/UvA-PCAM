@@ -3,6 +3,8 @@ import argparse
 import torch
 from pcam import get_dataloaders, get_model, train, test
 
+#Optimization
+torch.backends.cudnn.benchmark = True
 
 # Parameters
 parser = argparse.ArgumentParser(description="Train+Test script",
