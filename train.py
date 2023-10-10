@@ -36,10 +36,10 @@ else:
 train_loader, val_loader, test_loader = get_dataloaders('data', batch_size=config['batch'], resize=resize)
 
 # Model
-model, params = get_model(config['model'], device)
+model = get_model(config['model'], device)
 
 # Optimizer
-optimizer = torch.optim.Adam(params, lr=config['lr'])
+optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'])
 
 # Scheduler
 scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=config['lr'], epochs=config['epochs'],

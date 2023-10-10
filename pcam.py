@@ -186,21 +186,16 @@ def get_model(model_name, device):
     num_classes = 2
     if model.__class__.__name__ in ['AlexNet', 'VGG']:
         model.classifier[-1] = torch.nn.Linear(model.classifier[-1].in_features, num_classes)
-        params = model.classifier[-1].parameters()
     elif model.__class__.__name__ == 'DenseNet':
         model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes)
-        params = model.classifier.parameters()
     elif model.__class__.__name__ == 'VisionTransformer':
         model.heads.head = torch.nn.Linear(model.heads.head.in_features, num_classes)
-        params = model.heads.head.parameters()
     elif model.__class__.__name__ == 'SwinTransformer':
         model.head = torch.nn.Linear(model.head.in_features, num_classes)
-        params = model.head.parameters()
     else:
         model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
-        params = model.fc.parameters()
 
-    return model, params
+    return model
 
 
 def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_epochs, num_classes, device, save_ckpt_path=None, load_ckpt_path=None, logger=None, run=None):
