@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description="Train script",
 parser.add_argument("-model",  choices=['AlexNet', 'VGG-16', 'VGG-11', 'GoogleNet', 'Inception-v3',
                                         'ResNet-18', 'DenseNet-161', 'ViT-Base-16'], help="Model name")
 parser.add_argument("-augment", action='store_true', default=False, help="Add data augmentations or not")
-parser.add_argument("-batch", type=int, default=32, help="Batch size")
+parser.add_argument("-batch", type=int, default=256, help="Batch size")
 parser.add_argument("-epochs", type=int, default=5, help="Number of epochs")
 parser.add_argument("-classes", type=int, default=2, help="Number of classes")
 parser.add_argument("-lr", type=float, default=0.001, help="Learning rate")
