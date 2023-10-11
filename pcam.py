@@ -5,6 +5,7 @@ from tqdm import tqdm as _tqdm
 from ptflops import get_model_complexity_info
 
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision.datasets import PCAM
 import torchvision.transforms as transforms
@@ -89,7 +90,7 @@ def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=Tr
     return train_loader, val_loader, test_loader
 
 
-def get_model(model_name, device):
+def get_model(model_name, device, all_linears=True):
     model_dir = {'AlexNet': alexnet,
                  'VGG-16': vgg16,
                  'VGG-11': vgg11,
@@ -110,16 +111,48 @@ def get_model(model_name, device):
 
     # Create classification layer
     num_classes = 2
-    if model.__class__.__name__ in ['AlexNet', 'VGG']:
-        model.classifier[-1] = torch.nn.Linear(model.classifier[-1].in_features, num_classes)
-    elif model.__class__.__name__ == 'DenseNet':
-        model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes)
-    elif model.__class__.__name__ == 'VisionTransformer':
-        model.heads.head = torch.nn.Linear(model.heads.head.in_features, num_classes)
-    elif model.__class__.__name__ == 'SwinTransformer':
-        model.head = torch.nn.Linear(model.head.in_features, num_classes)
+    if all_linears:
+        if model.__class__.__name__ == 'AlexNet':
+            model.classifier = nn.Sequential(
+                nn.Dropout(p=0.5, inplace=False),
+                nn.Linear(in_features=9216, out_features=4096, bias=True),
+                nn.ReLU(inplace=True),
+                nn.Dropout(p=0.5, inplace=False),
+                nn.Linear(in_features=4096, out_features=4096, bias=True),
+                nn.ReLU(inplace=True),
+                nn.Linear(in_features=4096, out_features=num_classes, bias=True)
+            )
+        elif model.__class__.__name__ == 'VGG':
+            model.classifier = nn.Sequential(
+                nn.Linear(in_features=25088, out_features=4096, bias=True),
+                nn.ReLU(inplace=True),
+                nn.Dropout(p=0.5, inplace=False),
+                nn.Linear(in_features=4096, out_features=4096, bias=True),
+                nn.ReLU(inplace=True),
+                nn.Dropout(p=0.5, inplace=False),
+                nn.Linear(in_features=4096, out_features=num_classes, bias=True),
+            )
+        elif model.__class__.__name__ == 'DenseNet':
+            model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes)
+        elif model.__class__.__name__ == 'VisionTransformer':
+            model.heads.head = torch.nn.Linear(model.heads.head.in_features, num_classes)
+        elif model.__class__.__name__ == 'SwinTransformer':
+            model.head = torch.nn.Linear(model.head.in_features, num_classes)
+        else:
+            model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
     else:
-        model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
+        if model.__class__.__name__ == 'AlexNet':
+            model.classifier[-1] = nn.Linear(model.classifier[-1].in_features, num_classes)
+        elif model.__class__.__name__ == 'VGG':
+            model.classifier[-1] = nn.Linear(model.classifier[-1].in_features, num_classes)
+        elif model.__class__.__name__ == 'DenseNet':
+            model.classifier = nn.Linear(model.classifier.in_features, num_classes)
+        elif model.__class__.__name__ == 'VisionTransformer':
+            model.heads.head = nn.Linear(model.heads.head.in_features, num_classes)
+        elif model.__class__.__name__ == 'SwinTransformer':
+            model.head = nn.Linear(model.head.in_features, num_classes)
+        else:
+            model.fc = nn.Linear(model.fc.in_features, num_classes)
 
     return model
 
