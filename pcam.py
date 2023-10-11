@@ -11,7 +11,6 @@ import torchvision.transforms.v2 as transforms
 from torcheval.metrics import MulticlassAUROC, MulticlassAccuracy
 
 from torchvision.models import alexnet, vgg11, vgg16, googlenet, inception_v3, resnet18, densenet161
-from torchvision.models.vision_transformer import vit_b_16
 from torchvision.models import swin_v2_b
 
 
@@ -52,10 +51,10 @@ def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=Tr
     # Data augmentations
     if augment is True:
         augment_list = [
-            transforms.RandomResizedCrop(resize, antialias=True),
+            # transforms.RandomResizedCrop(resize, antialias=True),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
-            transforms.ColorJitter()
+            # transforms.ColorJitter()
         ]
     else:
         augment_list = []
@@ -97,8 +96,7 @@ def get_model(model_name, device):
                  'Inception-v3': inception_v3,
                  'ResNet-18': resnet18,
                  'DenseNet-161': densenet161,
-                 'ViT-Base-16': vit_b_16,
-                 'Swin-V2-Base': swin_v2_b}
+                 'SWIN-v2-B': swin_v2_b}
 
     model = model_dir[model_name](pretrained=True)
     model.to(device)
@@ -114,8 +112,6 @@ def get_model(model_name, device):
         model.classifier[-1] = torch.nn.Linear(model.classifier[-1].in_features, num_classes)
     elif model.__class__.__name__ == 'DenseNet':
         model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes)
-    elif model.__class__.__name__ == 'VisionTransformer':
-        model.heads.head = torch.nn.Linear(model.heads.head.in_features, num_classes)
     elif model.__class__.__name__ == 'SwinTransformer':
         model.head = torch.nn.Linear(model.head.in_features, num_classes)
     else:
@@ -125,7 +121,7 @@ def get_model(model_name, device):
 
 
 def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_epochs, num_classes, device,
-          save_ckpt_path=None, load_ckpt_path=None, logger=None, run=None):
+          augment=False, save_ckpt_path=None, load_ckpt_path=None, logger=None, run=None):
     """
     Trains model
     """
@@ -232,7 +228,7 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
     # Save model
     if save_ckpt_path is None:
         save_ckpt_folder = os.path.join('models',
-                                        f'{model.__class__.__name__}_lr{str(optimizer.defaults["lr"]).split(".")[1]}_epoch{num_epochs}')
+                                        f'{model.__class__.__name__}_lr{str(optimizer.defaults["lr"]).split(".")[1]}_epoch{num_epochs}' + ('_augment' if augment else ''))
         save_ckpt_folder = uniquify(
             save_ckpt_folder)  # Create unique folder name by appending number if given path already exists
 

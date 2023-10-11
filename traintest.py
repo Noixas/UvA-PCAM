@@ -10,11 +10,11 @@ torch.backends.cudnn.benchmark = True
 # Parameters
 parser = argparse.ArgumentParser(description="Train+Test script",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("-model", choices=['AlexNet', 'VGG-16', 'VGG-11', 'GoogleNet', 'Inception-v3',
-                                       'ResNet-18', 'DenseNet-161', 'ViT-Base-16'], help="Model name")
+parser.add_argument("-model",  choices=['AlexNet', 'VGG-16', 'VGG-11', 'GoogleNet', 'Inception-v3',
+                                        'ResNet-18', 'DenseNet-161', 'SWIN-v2-B'], help="Model name")
 parser.add_argument("-test_runs", type=int, default=1, help="Number of testing repetitions (to quantify uncertainty)")
 parser.add_argument("-augment", action='store_true', default=False, help="Add data augmentations or not")
-parser.add_argument("-batch", type=int, default=32, help="Batch size")
+parser.add_argument("-batch", type=int, default=256, help="Batch size")
 parser.add_argument("-epochs", type=int, default=5, help="Number of epochs")
 parser.add_argument("-classes", type=int, default=2, help="Number of classes")
 parser.add_argument("-lr", type=float, default=0.001, help="Learning rate")
@@ -24,6 +24,7 @@ args = parser.parse_args()
 config = vars(args)
 print(config)
 
+
 # Check if GPU is used
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Device: {device}')
@@ -31,7 +32,7 @@ print(f'Device: {device}')
 # Data
 if 'Inception' in config['model']:
     resize = 299
-elif 'ViT' in config['model']:
+elif 'SWIN' in config['model']:
     resize = 224
 else:
     resize = 96
@@ -52,7 +53,7 @@ loss_fun = torch.nn.CrossEntropyLoss()
 
 # Train
 train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_epochs=config['epochs'],
-      num_classes=config['classes'], device=device, save_ckpt_path=config['save_model'],
+      num_classes=config['classes'], augment=config['augment'], device=device, save_ckpt_path=config['save_model'],
       load_ckpt_path=config['load_model'])
 
 # Configure where to load checkpoint for testing
