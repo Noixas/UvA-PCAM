@@ -7,7 +7,7 @@ from ptflops import get_model_complexity_info
 import torch
 from torch.utils.data import DataLoader
 from torchvision.datasets import PCAM
-import torchvision.transforms.v2 as transforms
+import torchvision.transforms as transforms
 from torcheval.metrics import MulticlassAUROC, MulticlassAccuracy
 
 from torchvision.models import alexnet, vgg11, vgg16, googlenet, inception_v3, resnet18, densenet161
@@ -124,7 +124,7 @@ def get_dataloaders(data_path, batch_size, shuffle=True, download=True, resize=9
 
     # Preprocessing
     preprocess_list = [
-        transforms.PILToTensor(),
+        transforms.ToTensor(),
         transforms.Resize(resize, antialias=True)
     ]
 
