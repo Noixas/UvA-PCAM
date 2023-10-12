@@ -47,4 +47,5 @@ dropout = config['test_runs'] > 1
 
 # Test
 for i in range(config['test_runs']):
+    print(f'Testing Run {i+1}/{config["test_runs"]}')
     test(model, test_loader, loss_fun, config['classes'], device, load_ckpt_path=config['load_model'], dropout=dropout)

@@ -6,6 +6,7 @@ from ptflops import get_model_complexity_info
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as f
 from torch.utils.data import DataLoader
 from torchvision.datasets import PCAM
 import torchvision.transforms as transforms
@@ -84,7 +85,7 @@ def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=Tr
     else:
         train_loader = None
         val_loader = None
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)  # Do not shuffle so that uncertainty quantification can work (consistent order across runs)
 
     return train_loader, val_loader, test_loader
 
@@ -101,13 +102,13 @@ def get_model(model_name, device, all_linears=True):
 
     model = model_dir[model_name](pretrained=True)
     model.to(device)
-    print(f'Selected Model: {model.__class__.__name__}')
+    print(f'Selected Model: {model.__class__.__name__}\n')
 
-    # Freeze all layers except last
+    # Freeze all layers
     for param in model.parameters():
         param.requires_grad = False
 
-    # Create classification layer
+    # Unfreeze classification layers
     num_classes = 2
     if all_linears:
         if model.__class__.__name__ == 'AlexNet':
@@ -196,9 +197,9 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
             optimizer.zero_grad()
 
             # Forward pass
-            outputs = model(inputs)
-            _, preds = torch.max(outputs, 1)
-            loss = loss_fun(outputs, labels)
+            logits = model(inputs)
+            _, preds = torch.max(logits, 1)
+            loss = loss_fun(logits, labels)
 
             # Backward pass and optimizer step
             loss.backward()
@@ -206,8 +207,8 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
 
             # Update the running loss and metrics
             loss_arr.append(loss.item())
-            auc.update(outputs, labels)
-            accuracy.update(outputs, labels)
+            auc.update(logits, labels)  # AUC handles logits accordingly
+            accuracy.update(logits, labels)  # Accuracy too
 
             # Log metrics
             # Log after every 30 steps
@@ -241,14 +242,14 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
                 labels = labels.to(device)
 
                 # Forward pass
-                outputs = model(inputs)
-                _, preds = torch.max(outputs, 1)
-                loss = loss_fun(outputs, labels)
+                logits = model(inputs)
+                _, preds = torch.max(logits, 1)
+                loss = loss_fun(logits, labels)
 
                 # Update the running loss and metrics
                 loss_arr.append(loss.item())
-                auc.update(outputs, labels)
-                accuracy.update(outputs, labels)
+                auc.update(logits, labels)
+                accuracy.update(logits, labels)
 
         # Calculate the validation loss, accuracy and AUC
         val_loss = np.average(loss_arr)
@@ -320,8 +321,9 @@ def test(model, test_loader, loss_fun, num_classes, device, dropout=False, load_
     auc.reset()
     accuracy.reset()
 
-    # Initialize prediction and label list
-    preds_list = []
+    # Initialize prediction and label list to save as file later
+    pos_probs_list = []  # Probabilities for positive class
+    neg_probs_list = []  # Probabilities for negative class
     labels_list = []
 
     # Test
@@ -332,19 +334,20 @@ def test(model, test_loader, loss_fun, num_classes, device, dropout=False, load_
             labels = labels.to(device)
 
             # Forward pass
-            outputs = model(inputs)
-            _, preds = torch.max(outputs, 1)
-            loss = loss_fun(outputs, labels)
+            logits = model(inputs)
+            _, preds = torch.max(logits, 1)
+            loss = loss_fun(logits, labels)
 
             # Update the running loss and metrics
             loss_arr.append(loss.item())
-            auc.update(outputs, labels)
-            accuracy.update(outputs, labels)
+            auc.update(logits, labels)
+            accuracy.update(logits, labels)
 
             # Update the list of all predictions and labels
-            preds_list += preds.detach().tolist()
+            probs = f.softmax(logits, dim=1)
+            pos_probs_list += probs[:, 1].detach().tolist()
+            neg_probs_list += probs[:, 0].detach().tolist()
             labels_list += labels.detach().tolist()
-
 
     # Calculate the test loss, accuracy and AUC
     test_loss = np.average(loss_arr)
@@ -362,17 +365,17 @@ def test(model, test_loader, loss_fun, num_classes, device, dropout=False, load_
                                                                                          test_auc))
 
     # Save outputs and metrics
-    outputs = pd.DataFrame({'preds': preds_list, 'labels': labels_list})
+    outputs = pd.DataFrame({'pos_probs': pos_probs_list, 'neg_probs': neg_probs_list, 'labels': labels_list})
     metrics = pd.DataFrame(
         {'model': model.__class__.__name__, 'gflops': [gflops], 'test_loss': [test_loss], 'test_acc': [test_acc],
          'test_auc': [test_auc]})
     if load_ckpt_path is not None:
-        save_outputs_path = load_ckpt_path.split('.')[0] + '_outputs.csv'
-        save_metrics_path = load_ckpt_path.split('.')[0] + '_metrics.csv'
+        save_outputs_path = uniquify(load_ckpt_path.split('.')[0] + '_outputs.csv')  # Create unique file
+        save_metrics_path = uniquify(load_ckpt_path.split('.')[0] + '_metrics.csv')
     else:
         save_folder = os.path.join('models', f'{model.__class__.__name__}')
 
-        save_outputs_path = uniquify(os.path.join(save_folder, f'{model.__class__.__name__}_outputs.csv'))  # Create unique file
+        save_outputs_path = uniquify(os.path.join(save_folder, f'{model.__class__.__name__}_outputs.csv'))
         save_metrics_path = uniquify(os.path.join(save_folder, f'{model.__class__.__name__}_metrics.csv'))
 
         if not os.path.exists('models'):  # If folder 'models' doesn't exist, create it
