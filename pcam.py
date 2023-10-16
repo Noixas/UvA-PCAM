@@ -12,8 +12,14 @@ from torchvision.datasets import PCAM
 import torchvision.transforms as transforms
 from torcheval.metrics import MulticlassAUROC, MulticlassAccuracy
 
-from torchvision.models import alexnet, vgg11, vgg16, googlenet, inception_v3, resnet18, densenet161
-from torchvision.models import swin_v2_b
+from torchvision.models import (alexnet, AlexNet_Weights,
+                                vgg11, VGG11_Weights,
+                                vgg16, VGG16_Weights,
+                                googlenet, GoogLeNet_Weights,
+                                inception_v3, Inception_V3_Weights,
+                                resnet18, ResNet18_Weights,
+                                densenet161, DenseNet161_Weights,
+                                swin_v2_b, Swin_V2_B_Weights)
 
 
 def uniquify(path):
@@ -90,17 +96,17 @@ def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=Tr
     return train_loader, val_loader, test_loader
 
 
-def get_model(model_name, device, all_linears=True):
-    model_dir = {'AlexNet': alexnet,
-                 'VGG-16': vgg16,
-                 'VGG-11': vgg11,
-                 'GoogleNet': googlenet,
-                 'Inception-v3': inception_v3,
-                 'ResNet-18': resnet18,
-                 'DenseNet-161': densenet161,
-                 'SWIN-v2-B': swin_v2_b}
+def get_model(model_name, device, all_linears=False):
+    model_dir = {'AlexNet': (alexnet, AlexNet_Weights.IMAGENET1K_V1),
+                 'VGG-11': (vgg11, VGG11_Weights.IMAGENET1K_V1),
+                 'VGG-16': (vgg16, VGG16_Weights.IMAGENET1K_V1),
+                 'GoogleNet': (googlenet, GoogLeNet_Weights.IMAGENET1K_V1),
+                 'Inception-v3': (inception_v3, Inception_V3_Weights.IMAGENET1K_V1),
+                 'ResNet-18': (resnet18, ResNet18_Weights.IMAGENET1K_V1),
+                 'DenseNet-161': (densenet161, DenseNet161_Weights.IMAGENET1K_V1),
+                 'Swin-v2-Base': (swin_v2_b,Swin_V2_B_Weights.IMAGENET1K_V1)}
 
-    model = model_dir[model_name](pretrained=True)
+    model = model_dir[model_name][0](weights=model_dir[model_name][1])
     model.to(device)
     print(f'Selected Model: {model.__class__.__name__}\n')
 
@@ -186,8 +192,8 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
         auc.reset()
         accuracy.reset()
 
-        i = 0
         # Train
+        i = 0
         for inputs, labels in tqdm(train_loader, desc=f'Epoch {epoch + 1}/{num_epochs}, Training'):
             # Move the inputs and labels to the device
             inputs = inputs.float().to(device)
@@ -210,12 +216,11 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
             auc.update(logits, labels)  # AUC handles logits accordingly
             accuracy.update(logits, labels)  # Accuracy too
 
-            # Log metrics
-            # Log after every 30 steps
-            if i % 100 == 0 and run != None:
-                run[logger.base_namespace]["batch/loss"].append(loss.item())
-                run[logger.base_namespace]["batch/acc"].append(accuracy.compute())
-                run[logger.base_namespace]["batch/auc"].append(auc.compute())
+            # Log metrics (every 30 steps)
+            if i % 100 == 0 and logger is not None and run is not None:
+                run[logger.base_namespace]["batch/train_loss"].append(loss.item())
+                run[logger.base_namespace]["batch/train_acc"].append(accuracy.compute())
+                run[logger.base_namespace]["batch/train_auc"].append(auc.compute())
             i += 1
 
         # Scheduler step
@@ -235,6 +240,7 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
         accuracy.reset()
 
         # Validate
+        i = 0
         with torch.no_grad():
             for inputs, labels in tqdm(val_loader, desc=f'Epoch {epoch + 1}/{num_epochs}, Validation'):
                 # Move the inputs and labels to the device
@@ -250,6 +256,13 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
                 loss_arr.append(loss.item())
                 auc.update(logits, labels)
                 accuracy.update(logits, labels)
+
+                # Log metrics (every 30 steps)
+                if i % 100 == 0 and logger is not None and run is not None:
+                    run[logger.base_namespace]["batch/val_loss"].append(loss.item())
+                    run[logger.base_namespace]["batch/val_acc"].append(accuracy.compute())
+                    run[logger.base_namespace]["batch/val_auc"].append(auc.compute())
+                i += 1
 
         # Calculate the validation loss, accuracy and AUC
         val_loss = np.average(loss_arr)
@@ -288,7 +301,7 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
     }, save_ckpt_path)
     print(f'Saved checkpoint at: {save_ckpt_path}\n')
 
-    return model, (train_loss, train_acc, train_auc, val_loss, val_acc, val_auc)
+    return save_ckpt_path
 
 
 def test(model, test_loader, loss_fun, num_classes, device, dropout=False, load_ckpt_path=None):
@@ -387,5 +400,3 @@ def test(model, test_loader, loss_fun, num_classes, device, dropout=False, load_
     metrics.to_csv(save_metrics_path)
     print(f'Saved outputs at: {save_metrics_path}\n')
     print(f'Saved metrics at: {save_metrics_path}\n')
-
-    return gflops, test_loss, test_acc, test_auc
