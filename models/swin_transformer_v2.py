@@ -12,6 +12,7 @@ import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 import numpy as np
 
+VIS_ATT = True
 
 class Mlp(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
@@ -176,7 +177,9 @@ class WindowAttention(nn.Module):
         x = (attn @ v).transpose(1, 2).reshape(B_, N, C)
         x = self.proj(x)
         x = self.proj_drop(x)
-        return x
+        if VIS_ATT:
+            return x, attn
+        return x, None
 
     def extra_repr(self) -> str:
         return f'dim={self.dim}, window_size={self.window_size}, ' \
@@ -267,6 +270,12 @@ class SwinTransformerBlock(nn.Module):
 
         self.register_buffer("attn_mask", attn_mask)
 
+        self.activations = None
+        self.activations_gradient = None
+
+    def activations_hook(self, grad):
+        self.activations_gradient = grad
+
     def forward(self, x):
         H, W = self.input_resolution
         B, L, C = x.shape
@@ -274,6 +283,9 @@ class SwinTransformerBlock(nn.Module):
 
         shortcut = x
         x = x.view(B, H, W, C)
+
+        self.activations = x.detach()
+        h = x.register_hook(self.activations_hook)
 
         # cyclic shift
         if self.shift_size > 0:
@@ -286,7 +298,7 @@ class SwinTransformerBlock(nn.Module):
         x_windows = x_windows.view(-1, self.window_size * self.window_size, C)  # nW*B, window_size*window_size, C
 
         # W-MSA/SW-MSA
-        attn_windows = self.attn(x_windows, mask=self.attn_mask)  # nW*B, window_size*window_size, C
+        attn_windows, attn_weights = self.attn(x_windows, mask=self.attn_mask)  # nW*B, window_size*window_size, C
 
         # merge windows
         attn_windows = attn_windows.view(-1, self.window_size, self.window_size, C)
@@ -303,7 +315,7 @@ class SwinTransformerBlock(nn.Module):
         # FFN
         x = x + self.drop_path(self.norm2(self.mlp(x)))
 
-        return x
+        return x, attn_weights
 
     def extra_repr(self) -> str:
         return f"dim={self.dim}, input_resolution={self.input_resolution}, num_heads={self.num_heads}, " \
@@ -322,6 +334,12 @@ class SwinTransformerBlock(nn.Module):
         # norm2
         flops += self.dim * H * W
         return flops
+
+    def get_activations(self):
+        return self.activations
+
+    def get_activations_gradient(self):
+        return self.activations_gradient
 
 
 class PatchMerging(nn.Module):
@@ -423,15 +441,21 @@ class BasicLayer(nn.Module):
         else:
             self.downsample = None
 
+        self.activations = None
+
     def forward(self, x):
+        all_attn_weights = []
         for blk in self.blocks:
             if self.use_checkpoint:
                 x = checkpoint.checkpoint(blk, x)
             else:
-                x = blk(x)
+                x, attn_weights = blk(x)
+                if blk.shift_size == 0: #todo also add shifted windows' attention
+                    all_attn_weights.append(attn_weights)
+        self.activations = self.blocks[-1].get_activations()
         if self.downsample is not None:
             x = self.downsample(x)
-        return x
+        return x, all_attn_weights
 
     def extra_repr(self) -> str:
         return f"dim={self.dim}, input_resolution={self.input_resolution}, depth={self.depth}"
@@ -450,6 +474,12 @@ class BasicLayer(nn.Module):
             nn.init.constant_(blk.norm1.weight, 0)
             nn.init.constant_(blk.norm2.bias, 0)
             nn.init.constant_(blk.norm2.weight, 0)
+
+    def get_activations(self):
+        return self.activations
+
+    def get_activations_gradient(self):
+        return self.blocks[-1].get_activations_gradient()
 
 
 class PatchEmbed(nn.Module):
@@ -586,6 +616,7 @@ class SwinTransformerV2(nn.Module):
         self.apply(self._init_weights)
         for bly in self.layers:
             bly._init_respostnorm()
+        self.activations = None
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
@@ -610,17 +641,22 @@ class SwinTransformerV2(nn.Module):
             x = x + self.absolute_pos_embed
         x = self.pos_drop(x)
 
+        layers_all_attn_weights = []
         for layer in self.layers:
-            x = layer(x)
+            x, all_attn_weights = layer(x)
+            layers_all_attn_weights.append(all_attn_weights)
+        self.activations = self.layers[-1].get_activations()
 
         x = self.norm(x)  # B L C
         x = self.avgpool(x.transpose(1, 2))  # B C 1
         x = torch.flatten(x, 1)
-        return x
+        return x, layers_all_attn_weights
 
     def forward(self, x):
-        x = self.forward_features(x)
+        x, layers_all_attn_weights = self.forward_features(x)
         x = self.head(x)
+        if VIS_ATT:
+            return x, layers_all_attn_weights
         return x
 
     def flops(self):
@@ -631,3 +667,9 @@ class SwinTransformerV2(nn.Module):
         flops += self.num_features * self.patches_resolution[0] * self.patches_resolution[1] // (2 ** self.num_layers)
         flops += self.num_features * self.num_classes
         return flops
+
+    def get_activations_gradient(self):
+        return self.layers[-1].get_activations_gradient()
+
+    def get_activations(self):
+        return self.activations
