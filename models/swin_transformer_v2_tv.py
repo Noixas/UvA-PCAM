@@ -14,6 +14,7 @@ from torchvision.models._api import register_model, Weights, WeightsEnum
 from torchvision.models._meta import _IMAGENET_CATEGORIES
 from torchvision.models._utils import _ovewrite_named_param, handle_legacy_interface
 
+VIS_ATT = False
 
 __all__ = [
     "SwinTransformer",
@@ -225,7 +226,9 @@ def shifted_window_attention(
 
     # unpad features
     x = x[:, :H, :W, :].contiguous()
-    return x
+    if VIS_ATT:
+        return x, attn
+    return x, None
 
 
 torch.fx.wrap("shifted_window_attention")
@@ -497,12 +500,26 @@ class SwinTransformerBlockV2(SwinTransformerBlock):
             attn_layer=attn_layer,
         )
 
+        self.activations = None
+        self.activations_gradient = None
+
+    def activations_hook(self, grad):
+        self.activations_gradient = grad
+
     def forward(self, x: Tensor):
         # Here is the difference, we apply norm after the attention in V2.
         # In V1 we applied norm before the attention.
-        x = x + self.stochastic_depth(self.norm1(self.attn(x)))
+        att_x, attn_weights = self.attn(x)
+        x = x + self.stochastic_depth(self.norm1(att_x))
+        x.register_hook(self.activations_hook)
         x = x + self.stochastic_depth(self.norm2(self.mlp(x)))
-        return x
+        return x, attn_weights
+
+    def get_activations(self):
+        return self.activations
+
+    def get_activations_gradient(self):
+        return self.activations_gradient
 
 
 class SwinTransformer(nn.Module):
@@ -604,14 +621,34 @@ class SwinTransformer(nn.Module):
                 if m.bias is not None:
                     nn.init.zeros_(m.bias)
 
+        self.activations = None
+
+
+    def forward_features(self, x):
+        layers_all_attn_weights = []
+        for layer in self.features:
+            x, all_attn_weights = layer(x)
+            layers_all_attn_weights.append(all_attn_weights)
+        return x, layers_all_attn_weights
+
+
     def forward(self, x):
-        x = self.features(x)
+        x, layers_all_attn_weights = self.forward_features(x)   # TODO
         x = self.norm(x)
         x = self.permute(x)
         x = self.avgpool(x)
         x = self.flatten(x)
         x = self.head(x)
+        self.activations = self.features[-1][-1].get_activations()
+        if VIS_ATT:
+            return x, layers_all_attn_weights
         return x
+
+    def get_activations_gradient(self):
+        return self.features[-1][-1].get_activations_gradient()
+
+    def get_activations(self):
+        return self.activations
 
 
 def _swin_transformer(
