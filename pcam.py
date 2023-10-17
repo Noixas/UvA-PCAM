@@ -178,6 +178,14 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
         checkpoint = torch.load(load_ckpt_path)
         model.load_state_dict(checkpoint['model_state_dict'])
 
+    # Create loss and metric lists
+    train_loss_arr = []
+    train_auc_arr = []
+    train_acc_arr = []
+    val_loss_arr = []
+    val_auc_arr = []
+    val_acc_arr = []
+
     # Create metric monitors
     auc = MulticlassAUROC(num_classes=num_classes)
     accuracy = MulticlassAccuracy()
@@ -193,7 +201,6 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
         accuracy.reset()
 
         # Train
-        i = 0
         for inputs, labels in tqdm(train_loader, desc=f'Epoch {epoch + 1}/{num_epochs}, Training'):
             # Move the inputs and labels to the device
             inputs = inputs.float().to(device)
@@ -216,20 +223,22 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
             auc.update(logits, labels)  # AUC handles logits accordingly
             accuracy.update(logits, labels)  # Accuracy too
 
-            # Log metrics (every 30 steps)
-            if i % 100 == 0 and logger is not None and run is not None:
-                run[logger.base_namespace]["batch/train_loss"].append(loss.item())
-                run[logger.base_namespace]["batch/train_acc"].append(accuracy.compute())
-                run[logger.base_namespace]["batch/train_auc"].append(auc.compute())
-            i += 1
-
         # Scheduler step
         scheduler.step()
 
-        # Calculate the train loss and metrics
+        # Calculate the loss and metrics
         train_loss = np.average(loss_arr)
-        train_acc = accuracy.compute()
-        train_auc = auc.compute()
+        train_acc = accuracy.compute().item()
+        train_auc = auc.compute().item()
+
+        # Log the loss and metrics
+        train_loss_arr.append(train_loss)
+        train_acc_arr.append(train_acc)
+        train_auc_arr.append(train_auc)
+        if logger is not None and run is not None:
+            run[logger.base_namespace]["batch/train_loss"].append(train_loss)
+            run[logger.base_namespace]["batch/train_acc"].append(train_acc)
+            run[logger.base_namespace]["batch/train_auc"].append(train_auc)
 
         # Set the model to evaluation mode
         model.eval()
@@ -240,7 +249,6 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
         accuracy.reset()
 
         # Validate
-        i = 0
         with torch.no_grad():
             for inputs, labels in tqdm(val_loader, desc=f'Epoch {epoch + 1}/{num_epochs}, Validation'):
                 # Move the inputs and labels to the device
@@ -257,17 +265,19 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
                 auc.update(logits, labels)
                 accuracy.update(logits, labels)
 
-                # Log metrics (every 30 steps)
-                if i % 100 == 0 and logger is not None and run is not None:
-                    run[logger.base_namespace]["batch/val_loss"].append(loss.item())
-                    run[logger.base_namespace]["batch/val_acc"].append(accuracy.compute())
-                    run[logger.base_namespace]["batch/val_auc"].append(auc.compute())
-                i += 1
-
         # Calculate the validation loss, accuracy and AUC
         val_loss = np.average(loss_arr)
-        val_acc = accuracy.compute()
-        val_auc = auc.compute()
+        val_acc = accuracy.compute().item()
+        val_auc = auc.compute().item()
+
+        # Log the loss and metrics
+        val_loss_arr.append(val_loss)
+        val_acc_arr.append(val_acc)
+        val_auc_arr.append(val_auc)
+        if logger is not None and run is not None:
+            run[logger.base_namespace]["batch/val_loss"].append(val_loss)
+            run[logger.base_namespace]["batch/val_acc"].append(val_acc)
+            run[logger.base_namespace]["batch/val_auc"].append(val_auc)
 
         # Print the epoch results
         print(
@@ -300,6 +310,16 @@ def train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_e
         'val_auc': val_auc,
     }, save_ckpt_path)
     print(f'Saved checkpoint at: {save_ckpt_path}\n')
+
+    # Save learning curve
+    curve = pd.DataFrame(
+        {'model': model.__class__.__name__,
+         'train_loss': train_loss_arr, 'train_acc': train_acc_arr, 'train_auc': train_auc_arr,
+         'val_loss': val_loss_arr, 'val_acc': val_acc_arr, 'val_auc': val_auc_arr}
+    )
+    save_curve_path = save_ckpt_path.split('.')[0] + '_curve.csv'
+    curve.to_csv(save_curve_path)
+    print(f'Saved curve at: {save_curve_path}\n')
 
     return save_ckpt_path
 
