@@ -163,6 +163,6 @@ cython_debug/
 #.idea/
 load_data.ipynb
 test.py
+/token.txt
 .neptune/async/run__9a4cf543-8a7e-481f-9404-7caf9e051eb2/exec-1696553229.487845-2023-10-06_02.47.09.487845-40948/last_ack_version
-.gitignore
 .neptune/async/run__9a4cf543-8a7e-481f-9404-7caf9e051eb2/exec-1696553229.487845-2023-10-06_02.47.09.487845-40948/last_put_version
