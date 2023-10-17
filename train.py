@@ -31,6 +31,8 @@ print(f'Device: {device}')
 # Data
 if 'Inception' in config['model']:
     resize = 299
+if 'Swin' in config['model']:
+    resize = 256
 else:
     resize = 96
 train_loader, val_loader, test_loader = get_dataloaders('data', batch_size=config['batch'], resize=resize,

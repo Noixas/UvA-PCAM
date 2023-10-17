@@ -164,7 +164,7 @@ def get_model(model_name, device, all_linears=False):
             model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes)
         elif model.__class__.__name__ == 'VisionTransformer':
             model.heads.head = torch.nn.Linear(model.heads.head.in_features, num_classes)
-        elif model.__class__.__name__ == 'SwinTransformer':
+        elif model.__class__.__name__ == 'SwinTransformerV2':
             model.head = torch.nn.Linear(model.head.in_features, num_classes)
         else:
             model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
@@ -177,7 +177,7 @@ def get_model(model_name, device, all_linears=False):
             model.classifier = nn.Linear(model.classifier.in_features, num_classes)
         elif model.__class__.__name__ == 'VisionTransformer':
             model.heads.head = nn.Linear(model.heads.head.in_features, num_classes)
-        elif model.__class__.__name__ == 'SwinTransformer':
+        elif model.__class__.__name__ == 'SwinTransformerV2':
             model.head = nn.Linear(model.head.in_features, num_classes)
         else:
             model.fc = nn.Linear(model.fc.in_features, num_classes)
