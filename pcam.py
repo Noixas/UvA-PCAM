@@ -12,6 +12,10 @@ from torchvision.datasets import PCAM
 import torchvision.transforms as transforms
 from torcheval.metrics import MulticlassAUROC, MulticlassAccuracy
 
+from models.swin_transformer_v2 import SwinTransformerV2    # Original Swin Transformer
+import requests
+import io
+
 from torchvision.models import (alexnet, AlexNet_Weights,
                                 vgg11, VGG11_Weights,
                                 vgg16, VGG16_Weights,
@@ -104,9 +108,27 @@ def get_model(model_name, device, all_linears=False):
                  'Inception-v3': (inception_v3, Inception_V3_Weights.IMAGENET1K_V1),
                  'ResNet-18': (resnet18, ResNet18_Weights.IMAGENET1K_V1),
                  'DenseNet-161': (densenet161, DenseNet161_Weights.IMAGENET1K_V1),
-                 'Swin-v2-Base': (swin_v2_b,Swin_V2_B_Weights.IMAGENET1K_V1)}
+                 # 'Swin-v2-Base': (swin_v2_b,Swin_V2_B_Weights.IMAGENET1K_V1),
+                 'Swin-v2-Base': (SwinTransformerV2, None)}
 
-    model = model_dir[model_name][0](weights=model_dir[model_name][1])
+    if model_name == 'Swin-v2-Base':
+        num_classes = 1000  # Imagenet
+        model = SwinTransformerV2(
+            img_size=256,
+            patch_size=[4, 4],
+            embed_dim=128,
+            depths=[2, 2, 18, 2],
+            num_heads=[4, 8, 16, 32],
+            window_size=8,
+            stochastic_depth_prob=0.5,
+            num_classes=num_classes)
+        # load checkpoint
+        url = 'https://github.com/SwinTransformer/storage/releases/download/v2.0.0/swinv2_base_patch4_window8_256.pth'
+        response = requests.get(url)
+        checkpoint = torch.load(io.BytesIO(response.content))
+        model.load_state_dict(checkpoint['model'])
+    else:
+        model = model_dir[model_name][0](weights=model_dir[model_name][1])
     model.to(device)
     print(f'Selected Model: {model.__class__.__name__}\n')
 
