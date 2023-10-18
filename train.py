@@ -78,5 +78,6 @@ train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_epoch
       num_classes=config['classes'], augment=config['augment'], device=device, save_ckpt_path=config['save_model'], logger=logger, run=run )
 
 # Stop Neptune logger
-run.stop()
+if run is not None:
+    run.stop()
 

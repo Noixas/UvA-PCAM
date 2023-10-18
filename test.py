@@ -13,6 +13,7 @@ parser.add_argument("-model",  choices=['AlexNet', 'VGG-16', 'VGG-11', 'GoogleNe
 parser.add_argument("-test_runs", type=int, default=1, help="Number of testing repetitions (to quantify uncertainty)")
 parser.add_argument("-batch", type=int, default=256, help="Batch size")
 parser.add_argument("-classes", type=int, default=2, help="Number of classes")
+parser.add_argument("-data_path", default='data', help="Path to load data from")
 parser.add_argument("-load_model", default=None, help="Path to load checkpoint")
 args = parser.parse_args()
 config = vars(args)
@@ -26,9 +27,11 @@ print(f'Device: {device}')
 # Data
 if 'Inception' in config['model']:
     resize = 299
+elif 'Swin' in config['model']:
+    resize = 256
 else:
     resize = 96
-_, _, test_loader = get_dataloaders('data', batch_size=config['batch'], train=False)
+_, _, test_loader = get_dataloaders(config['data_path'], batch_size=config['batch'], train=False, resize=resize,)
 
 # Model
 model = get_model(config['model'], device)

@@ -84,15 +84,15 @@ def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=Tr
         print(train_transform)
 
     testval_transform = transforms.Compose(preprocess_list + normalize_list)
-
+    print(f"Loading data from {data_path}")
     if train:
         train_dataset = PCAM(root=data_path, split='train', download=download, transform=train_transform)
         val_dataset = PCAM(root=data_path, split='val', download=download, transform=testval_transform)
     test_dataset = PCAM(root=data_path, split='test', download=download, transform=testval_transform)
 
     if train:
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
-        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle, num_workers= 0,pin_memory=False) # set pin_memory=True for faster data transfer to GPU
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle, num_workers= 0, pin_memory=False)
     else:
         train_loader = None
         val_loader = None
