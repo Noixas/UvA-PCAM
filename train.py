@@ -11,7 +11,7 @@ torch.backends.cudnn.benchmark = True
 parser = argparse.ArgumentParser(description="Train script",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-model",  choices=['AlexNet', 'VGG-16', 'VGG-11', 'GoogleNet', 'Inception-v3',
-                                        'ResNet-18', 'DenseNet-161', 'Swin-v2-Base'], help="Model name")
+                                        'ResNet-18', 'DenseNet-161', 'Swin-v2-Base', 'Vit-b-16'], help="Model name")
 parser.add_argument("-augment", action='store_true', default=False, help="To add data augmentations or not")
 parser.add_argument("-batch", type=int, default=256, help="Batch size")
 parser.add_argument("-epochs", type=int, default=5, help="Number of epochs")

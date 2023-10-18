@@ -24,7 +24,8 @@ from torchvision.models import (alexnet, AlexNet_Weights,
                                 inception_v3, Inception_V3_Weights,
                                 resnet18, ResNet18_Weights,
                                 densenet161, DenseNet161_Weights,
-                                swin_v2_b, Swin_V2_B_Weights)
+                                swin_v2_b, Swin_V2_B_Weights,
+                                vit_b_16, ViT_B_16_Weights,)
 
 
 def uniquify(path):
@@ -110,7 +111,8 @@ def get_model(model_name, device, all_linears=False):
                  'ResNet-18': (resnet18, ResNet18_Weights.IMAGENET1K_V1),
                  'DenseNet-161': (densenet161, DenseNet161_Weights.IMAGENET1K_V1),
                  # 'Swin-v2-Base': (swin_v2_b,Swin_V2_B_Weights.IMAGENET1K_V1),
-                 'Swin-v2-Base': (SwinTransformerV2, None)}
+                 'Swin-v2-Base': (SwinTransformerV2, None),
+                 'Vit-b-16': (vit_b_16, ViT_B_16_Weights.IMAGENET1K_V1)}
 
     if model_name == 'Swin-v2-Base':
         num_classes = 1000  # Imagenet
