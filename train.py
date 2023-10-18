@@ -18,6 +18,7 @@ parser.add_argument("-epochs", type=int, default=5, help="Number of epochs")
 parser.add_argument("-classes", type=int, default=2, help="Number of classes")
 parser.add_argument("-lr", type=float, default=0.001, help="Learning rate")
 parser.add_argument("-save_model", default=None, help="Path to save checkpoint")
+parser.add_argument("-data_path", default='data', help="Path to load data from")
 parser.add_argument("-token", default=None, help="File path containing Neptune API Token")
 args = parser.parse_args()
 config = vars(args)
@@ -35,7 +36,7 @@ if 'Swin' in config['model']:
     resize = 256
 else:
     resize = 96
-train_loader, val_loader, test_loader = get_dataloaders('data', batch_size=config['batch'], resize=resize,
+train_loader, val_loader, test_loader = get_dataloaders(config['data_path'], batch_size=config['batch'], resize=resize,
                                                         augment=config['augment'])
 
 # Model
@@ -74,7 +75,7 @@ else:
 
 # Train
 train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_epochs=config['epochs'],
-      num_classes=config['classes'], augment=config['augment'], device=device, save_ckpt_path=config['save_model'], logger=logger, run=run)
+      num_classes=config['classes'], augment=config['augment'], device=device, save_ckpt_path=config['save_model'], logger=logger, run=run )
 
 # Stop Neptune logger
 run.stop()
