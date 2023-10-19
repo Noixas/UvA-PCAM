@@ -8,17 +8,15 @@ torch.backends.cudnn.benchmark = True
 # Parameters
 parser = argparse.ArgumentParser(description="Test script",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("-model",  choices=['AlexNet', 'VGG-16', 'VGG-11', 'GoogleNet', 'Inception-v3',
-                                        'ResNet-18', 'DenseNet-161', 'Swin-v2-Base'], help="Model name")
+parser.add_argument("-model", choices=['AlexNet', 'VGG-16', 'VGG-11', 'GoogleNet', 'Inception-v3',
+                                       'ResNet-18', 'DenseNet-161', 'Swin-v2-Base'], help="Model name")
 parser.add_argument("-test_runs", type=int, default=1, help="Number of testing repetitions (to quantify uncertainty)")
 parser.add_argument("-batch", type=int, default=256, help="Batch size")
-parser.add_argument("-epochs", type=int, default=5, help="Number of epochs")
 parser.add_argument("-classes", type=int, default=2, help="Number of classes")
 parser.add_argument("-load_model", default=None, help="Path to load checkpoint")
 args = parser.parse_args()
 config = vars(args)
 print(f'Arguments: {config}')
-
 
 # Check if GPU is used
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

@@ -45,7 +45,7 @@ def tqdm(*args, **kwargs):
     return _tqdm(*args, **kwargs, mininterval=1)  # Safety, do not overflow buffer
 
 
-def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=True, resize=96, augment=False):
+def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=True, resize=96, augment=False, normalize=True):
     """
     Creates dataloaders from dataset
     """
@@ -68,9 +68,12 @@ def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=Tr
         augment_list = []
 
     # Normalization
-    normalize_list = [
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ]
+    if normalize:
+        normalize_list = [
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ]
+    else:
+        normalize_list = []
 
     if train:
         train_transform = transforms.Compose(
@@ -348,6 +351,7 @@ def test(model, test_loader, loss_fun, num_classes, device, dropout=False, load_
         for module in model.modules():
             if 'Dropout' in module.__class__.__name__:
                 module.train()
+                module.p = 0.3
 
     # Initialize the running loss and metrics
     loss_arr = []

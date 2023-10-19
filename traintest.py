@@ -87,4 +87,5 @@ for i in range(config['test_runs']):
     test(model, test_loader, loss_fun, config['classes'], device, load_ckpt_path=save_model_path, dropout=dropout)
 
 # Stop Neptune logger
-run.stop()
+if run:
+    run.stop()

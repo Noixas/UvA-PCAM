@@ -10,8 +10,8 @@ torch.backends.cudnn.benchmark = True
 # Parameters
 parser = argparse.ArgumentParser(description="Train script",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("-model",  choices=['AlexNet', 'VGG-16', 'VGG-11', 'GoogleNet', 'Inception-v3',
-                                        'ResNet-18', 'DenseNet-161', 'Swin-v2-Base'], help="Model name")
+parser.add_argument("-model", choices=['AlexNet', 'VGG-16', 'VGG-11', 'GoogleNet', 'Inception-v3',
+'ResNet-18', 'DenseNet-161', 'Swin-v2-Base'], help="Model name")
 parser.add_argument("-augment", action='store_true', default=False, help="To add data augmentations or not")
 parser.add_argument("-batch", type=int, default=256, help="Batch size")
 parser.add_argument("-epochs", type=int, default=5, help="Number of epochs")
@@ -22,7 +22,6 @@ parser.add_argument("-token", default=None, help="File path containing Neptune A
 args = parser.parse_args()
 config = vars(args)
 print(f'Arguments: {config}')
-
 
 # Check if GPU is used
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -53,10 +52,10 @@ if config['token'] is not None:
     with open(config['token'], 'r') as file:
         token = file.read()
     run = neptune.init_run(
-        custom_run_id=model.__class__.__name__,
         project='UvA-2023/pcam2023',
         api_token=token,
-        mode='debug'
+        tags=[model.__class__.__name__]
+        # mode='debug'
     )
     logger = NeptuneLogger(
         run=run,
@@ -75,5 +74,6 @@ train(model, train_loader, val_loader, loss_fun, optimizer, scheduler, num_epoch
       num_classes=config['classes'], augment=config['augment'], device=device, save_ckpt_path=config['save_model'], logger=logger, run=run)
 
 # Stop Neptune logger
-run.stop()
+if run:
+    run.stop()
 
