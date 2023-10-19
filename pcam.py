@@ -12,6 +12,11 @@ from torchvision.datasets import PCAM
 import torchvision.transforms as transforms
 from torcheval.metrics import MulticlassAUROC, MulticlassAccuracy
 
+# from models.swin_transformer_v2 import SwinTransformerV2    # Original Swin Transformer
+from models.simple_swin_v2 import SwinTransformerV2    # Original Swin Transformer without gradcam stuff
+import requests
+import io
+
 from torchvision.models import (alexnet, AlexNet_Weights,
                                 vgg11, VGG11_Weights,
                                 vgg16, VGG16_Weights,
