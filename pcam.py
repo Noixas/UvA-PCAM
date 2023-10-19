@@ -19,7 +19,8 @@ from torchvision.models import (alexnet, AlexNet_Weights,
                                 inception_v3, Inception_V3_Weights,
                                 resnet18, ResNet18_Weights,
                                 densenet161, DenseNet161_Weights,
-                                swin_v2_b, Swin_V2_B_Weights)
+                                swin_v2_b, Swin_V2_B_Weights,
+                                vit_b_16, ViT_B_16_Weights)
 
 
 def uniquify(path):
@@ -45,7 +46,7 @@ def tqdm(*args, **kwargs):
     return _tqdm(*args, **kwargs, mininterval=1)  # Safety, do not overflow buffer
 
 
-def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=True, resize=96, augment=False):
+def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=True, resize=96, augment=False, pin_memory=False):
     """
     Creates dataloaders from dataset
     """
@@ -60,9 +61,9 @@ def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=Tr
     if augment is True:
         augment_list = [
             # transforms.RandomResizedCrop(resize, antialias=True),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomVerticalFlip(),
-            # transforms.ColorJitter()
+            # transforms.RandomHorizontalFlip(),
+            # transforms.RandomVerticalFlip(),
+            transforms.ColorJitter()
         ]
     else:
         augment_list = []
@@ -86,7 +87,7 @@ def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=Tr
     test_dataset = PCAM(root=data_path, split='test', download=download, transform=testval_transform)
 
     if train:
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=pin_memory) # set pin_memory=True for faster data transfer to GPU
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle)
     else:
         train_loader = None
@@ -104,7 +105,9 @@ def get_model(model_name, device, all_linears=False):
                  'Inception-v3': (inception_v3, Inception_V3_Weights.IMAGENET1K_V1),
                  'ResNet-18': (resnet18, ResNet18_Weights.IMAGENET1K_V1),
                  'DenseNet-161': (densenet161, DenseNet161_Weights.IMAGENET1K_V1),
-                 'Swin-v2-Base': (swin_v2_b,Swin_V2_B_Weights.IMAGENET1K_V1)}
+                 'Swin-v2-Base': (swin_v2_b,Swin_V2_B_Weights.IMAGENET1K_V1),
+                 'Swin-v2-Base-torch': (swin_v2_b,Swin_V2_B_Weights.IMAGENET1K_V1), #added from pcam branch
+                 'Vit-b-16': (vit_b_16, ViT_B_16_Weights.IMAGENET1K_V1)}
 
     model = model_dir[model_name][0](weights=model_dir[model_name][1])
     model.to(device)
