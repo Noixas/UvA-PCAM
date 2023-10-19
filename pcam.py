@@ -21,7 +21,9 @@ from torchvision.models import (alexnet, AlexNet_Weights,
                                 densenet161, DenseNet161_Weights,
                                 swin_v2_b, Swin_V2_B_Weights,
                                 vit_b_16, ViT_B_16_Weights)
-
+from models.simple_swin_v2 import SwinTransformerV2    # Original Swin Transformer without gradcam stuff
+import requests
+import io
 
 def uniquify(path):
     """
@@ -63,7 +65,7 @@ def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=Tr
             # transforms.RandomResizedCrop(resize, antialias=True),
             # transforms.RandomHorizontalFlip(),
             # transforms.RandomVerticalFlip(),
-            transforms.ColorJitter()
+            transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5)
         ]
     else:
         augment_list = []
@@ -87,7 +89,7 @@ def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=Tr
     test_dataset = PCAM(root=data_path, split='test', download=download, transform=testval_transform)
 
     if train:
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=pin_memory) # set pin_memory=True for faster data transfer to GPU
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=True) # set pin_memory=True for faster data transfer to GPU
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle)
     else:
         train_loader = None
@@ -107,9 +109,27 @@ def get_model(model_name, device, all_linears=False):
                  'DenseNet-161': (densenet161, DenseNet161_Weights.IMAGENET1K_V1),
                  'Swin-v2-Base': (swin_v2_b,Swin_V2_B_Weights.IMAGENET1K_V1),
                  'Swin-v2-Base-torch': (swin_v2_b,Swin_V2_B_Weights.IMAGENET1K_V1), #added from pcam branch
+                 'Swin-v2-Base-micro': (SwinTransformerV2, None),
                  'Vit-b-16': (vit_b_16, ViT_B_16_Weights.IMAGENET1K_V1)}
 
-    model = model_dir[model_name][0](weights=model_dir[model_name][1])
+    if model_name == 'Swin-v2-Base-micro':
+        num_classes = 1000  # Imagenet
+        model = SwinTransformerV2(
+            img_size=256,
+            patch_size=[4, 4],
+            embed_dim=128,
+            depths=[2, 2, 18, 2],
+            num_heads=[4, 8, 16, 32],
+            window_size=8,
+            stochastic_depth_prob=0.5,
+            num_classes=num_classes)
+        # load checkpoint
+        url = 'https://github.com/SwinTransformer/storage/releases/download/v2.0.0/swinv2_base_patch4_window8_256.pth'
+        response = requests.get(url)
+        checkpoint = torch.load(io.BytesIO(response.content))
+        model.load_state_dict(checkpoint['model'])
+    else:
+        model = model_dir[model_name][0](weights=model_dir[model_name][1])
     model.to(device)
     print(f'Selected Model: {model.__class__.__name__}\n')
 
@@ -146,6 +166,8 @@ def get_model(model_name, device, all_linears=False):
             model.heads.head = torch.nn.Linear(model.heads.head.in_features, num_classes)
         elif model.__class__.__name__ == 'SwinTransformer':
             model.head = torch.nn.Linear(model.head.in_features, num_classes)
+        elif model.__class__.__name__ == 'SwinTransformerV2':
+            model.head = torch.nn.Linear(model.head.in_features, num_classes)
         else:
             model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
     else:
@@ -158,6 +180,8 @@ def get_model(model_name, device, all_linears=False):
         elif model.__class__.__name__ == 'VisionTransformer':
             model.heads.head = nn.Linear(model.heads.head.in_features, num_classes)
         elif model.__class__.__name__ == 'SwinTransformer':
+            model.head = nn.Linear(model.head.in_features, num_classes)
+        elif model.__class__.__name__ == 'SwinTransformerV2':
             model.head = nn.Linear(model.head.in_features, num_classes)
         else:
             model.fc = nn.Linear(model.fc.in_features, num_classes)
