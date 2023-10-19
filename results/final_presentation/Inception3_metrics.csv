@@ -1,0 +1,2 @@
+,model,gflops,test_loss,test_acc,test_auc
+0,Inception3,11.46317818,0.41503263951744884,0.809021,0.8916557

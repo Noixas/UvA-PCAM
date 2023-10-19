@@ -1,0 +1,2 @@
+,model,gflops,test_loss,test_acc,test_auc
+0,AlexNet,0.315375492,1.0742182144895196,0.73532104,0.81370944
