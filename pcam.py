@@ -53,7 +53,7 @@ def tqdm(*args, **kwargs):
     return _tqdm(*args, **kwargs, mininterval=1)  # Safety, do not overflow buffer
 
 
-def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=True, resize=96, augment=False):
+def get_dataloaders(data_path, batch_size, train=True, shuffle=True, download=True, resize=96, augment=False, normalize=True):
     """
     Creates dataloaders from dataset
     """
