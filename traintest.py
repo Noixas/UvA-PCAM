@@ -12,7 +12,7 @@ torch.backends.cudnn.benchmark = True
 parser = argparse.ArgumentParser(description="Train+Test script",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-model", choices=['AlexNet', 'VGG-16', 'VGG-11', 'GoogleNet', 'Inception-v3',
-                                       'ResNet-18', 'DenseNet-161', 'Swin-v2-Base'], help="Model name")
+                                       'ResNet-18', 'DenseNet-161', 'Swin-v2-Base', 'Vit-b-16'], help="Model name")
 parser.add_argument("-test_runs", type=int, default=1, help="Number of testing repetitions (to quantify uncertainty)")
 parser.add_argument("-augment", action='store_true', default=False, help="To add data augmentations or not")
 parser.add_argument("-batch", type=int, default=256, help="Batch size")
@@ -20,6 +20,7 @@ parser.add_argument("-epochs", type=int, default=5, help="Number of epochs")
 parser.add_argument("-classes", type=int, default=2, help="Number of classes")
 parser.add_argument("-lr", type=float, default=0.001, help="Learning rate")
 parser.add_argument("-save_model", default=None, help="Path to save checkpoint")
+parser.add_argument("-data_path", default='data', help="Path to load data from")
 parser.add_argument("-token", default=None, help="File path containing Neptune API Token")
 args = parser.parse_args()
 config = vars(args)
@@ -32,9 +33,11 @@ print(f'Device: {device}')
 # Data
 if 'Inception' in config['model']:
     resize = 299
+elif 'Vit' in config['model']:
+    resize = 224
 else:
     resize = 96
-train_loader, val_loader, test_loader = get_dataloaders('data', batch_size=config['batch'], resize=resize,
+train_loader, val_loader, test_loader = get_dataloaders(config['data_path'], batch_size=config['batch'], resize=resize,
                                                         augment=config['augment'])
 
 # Model

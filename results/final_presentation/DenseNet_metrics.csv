@@ -1,0 +1,2 @@
+,model,gflops,test_loss,test_acc,test_auc
+0,DenseNet,2.871246724,0.6050657556625083,0.7593384,0.8477905

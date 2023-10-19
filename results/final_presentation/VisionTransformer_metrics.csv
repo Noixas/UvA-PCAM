@@ -1,0 +1,2 @@
+,model,gflops,test_loss,test_acc,test_auc
+0,VisionTransformer,35.177938468,0.4519486374920234,0.8200073,0.9150174

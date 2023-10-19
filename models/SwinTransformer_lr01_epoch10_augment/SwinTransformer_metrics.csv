@@ -1,0 +1,2 @@
+,model,gflops,test_loss,test_acc,test_auc
+0,SwinTransformer,3.854888452,0.4126256871968508,0.81222534,0.90584207

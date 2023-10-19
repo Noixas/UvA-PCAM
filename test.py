@@ -8,12 +8,14 @@ torch.backends.cudnn.benchmark = True
 # Parameters
 parser = argparse.ArgumentParser(description="Test script",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("-model", choices=['AlexNet', 'VGG-16', 'VGG-11', 'GoogleNet', 'Inception-v3',
-                                       'ResNet-18', 'DenseNet-161', 'Swin-v2-Base'], help="Model name")
+parser.add_argument("-model",  choices=['AlexNet', 'VGG-16', 'VGG-11', 'GoogleNet', 'Inception-v3',
+                                        'ResNet-18', 'DenseNet-161', 'Swin-v2-Base'], help="Model name")
 parser.add_argument("-test_runs", type=int, default=1, help="Number of testing repetitions (to quantify uncertainty)")
 parser.add_argument("-batch", type=int, default=256, help="Batch size")
 parser.add_argument("-classes", type=int, default=2, help="Number of classes")
 parser.add_argument("-load_model", default=None, help="Path to load checkpoint")
+parser.add_argument("-data_path", default='data', help="Path to load data from")
+
 args = parser.parse_args()
 config = vars(args)
 print(f'Arguments: {config}')
@@ -25,9 +27,11 @@ print(f'Device: {device}')
 # Data
 if 'Inception' in config['model']:
     resize = 299
+elif 'Swin-v2-Base-micro' in config['model']:
+    resize = 256
 else:
     resize = 96
-_, _, test_loader = get_dataloaders('data', batch_size=config['batch'], train=False)
+_, _, test_loader = get_dataloaders(config['data_path'], resize=resize,batch_size=config['batch'], train=False)
 
 # Model
 model = get_model(config['model'], device)
